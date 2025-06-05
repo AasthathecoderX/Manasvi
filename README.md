@@ -50,8 +50,8 @@ Follow these steps to set up and run the project locally:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/yourproject.git
-cd yourproject
+git clone https://github.com/AasthathecoderX/Manasvi
+cd Manasvi
 ```
 
 ### 2. Create and Activate a Virtual Environment
