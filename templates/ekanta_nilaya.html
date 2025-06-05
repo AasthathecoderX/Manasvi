@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Manasvi - Ekanta Nilaya</title>
+    <link href="https://fonts.googleapis.com/css2?family=Alata&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+   
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ekanta_nilaya.css') }}" />
+ 
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <h1>MANASVI</h1>
+            <p>Where Ancient Wisdom Meets the Modern Mind.</p>
+        </div>
+        <!-- Removed <br> tags and used CSS gap for spacing -->
+          <!-- Chat list section -->
+        <div class="chat-list">
+            <h2>Your Chats</h2>
+            <a class="chat-link {% if not current_cid %}active{% endif %}" href="{{ url_for('new_chat') }}">
+                <i data-lucide="plus-circle" style="margin-right: 8px;"></i> New Chat
+            </a>
+            <!-- Placeholder for dynamic conversations. In a real Flask app, 'conversations' would be passed from the backend. -->
+            <!-- Example of dynamic content: -->
+            {% for cid, date in conversations %}
+                <a class="chat-link {% if current_cid == cid %}active{% endif %}" href="{{ url_for('load_chat', cid=cid) }}">
+                    <i data-lucide="message-square" style="margin-right: 8px;"></i> Chat on {{ date }}
+                    <small>{{ cid[:8] }}...</small>
+                </a>
+            {% endfor %}
+        </div>
+
+        <div class="separator"></div> <!-- Separator line -->
+
+        <!-- Sidebar navigation buttons section -->
+        <div class="sidebar-buttons">
+            <button class="active" onclick="window.location.href='{{ url_for('mood_tracker') }}'">
+                <i data-lucide="bar-chart-3"></i> MOOD TRACKER
+            </button>
+            <button onclick="window.location.href='{{ url_for('ekanta_nilaya') }}'">
+                <i data-lucide="lotus"></i> EKANTA NILAYA
+            </button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <div class="top-bar-controls">
+                
+                <div class="circle-btn dark" id="toggle-dark"><i data-lucide="moon"></i></div>
+                <!-- Added logout button for consistency with main app -->
+                <a href="{{ url_for('logout') }}" class="circle-btn logout-circle-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="quote">“The quieter you become, the more you can hear.”</div>
+
+        <div class="timer-section">
+            <label for="timeInput">Set Meditation Time (in minutes):</label>
+            <input type="number" id="timeInput" min="1" placeholder="e.g. 10" />
+
+            <label for="audioSelect">Choose Ambient Sound:</label>
+            <select id="audioSelect">
+                <option value="flute">Flute Melody</option>
+                <option value="sitar">Sitar Music</option>
+                <option value="violin">Violin Serenity</option>
+            </select>
+
+            <div class="buttons-row">
+                <button id="startBtn">Start</button>
+                <button id="pauseBtn" disabled>Pause</button>
+            </div>
+
+            <div id="countdownDisplay">00:00</div>
+
+            <audio id="fluteAudio" src="{{ url_for('static', filename='flute.mp3') }}" loop></audio>
+            <audio id="sitarAudio" src="{{ url_for('static', filename='sitar.mp3') }}" loop></audio>
+            <audio id="violinAudio" src="{{ url_for('static', filename='violin.mp3') }}" loop></audio>
+        </div>
+    </div>
+
+    <script id="ekanta-nilaya-script">
+        lucide.createIcons();
+
+        let countdown;
+        let remainingSeconds = 0;
+        let isPaused = false;
+        let currentAudio = null;
+
+        const countdownDisplay = document.getElementById("countdownDisplay");
+        const startBtn = document.getElementById("startBtn");
+        const pauseBtn = document.getElementById("pauseBtn");
+        const timeInput = document.getElementById("timeInput");
+        const audioSelect = document.getElementById("audioSelect");
+        const audioElements = {
+            flute: document.getElementById("fluteAudio"),
+            sitar: document.getElementById("sitarAudio"),
+            violin: document.getElementById("violinAudio")
+        };
+
+        function updateDisplay(seconds) {
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            countdownDisplay.textContent = `${mins}:${secs}`;
+        }
+
+        function playAudio(name) {
+            if (currentAudio && currentAudio !== audioElements[name]) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            currentAudio = audioElements[name];
+            if (currentAudio) {
+                currentAudio.play().catch(error => console.error("Audio playback failed:", error));
+            }
+        }
+
+        function pauseCurrentAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+            }
+        }
+
+        function resumeCurrentAudio() {
+            if (currentAudio) {
+                currentAudio.play().catch(error => console.error("Audio playback failed:", error));
+            }
+        }
+
+        if (startBtn) {
+            startBtn.addEventListener("click", () => {
+                const minutes = parseInt(timeInput.value);
+                if (!minutes || minutes < 1) {
+                    // Using a custom message box instead of alert()
+                    const messageBox = document.createElement('div');
+                    messageBox.style.cssText = `
+                        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        background-color: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                        z-index: 1000; text-align: center; color: #4a2c2c; /* Adjusted for light mode text */
+                    `;
+                    messageBox.innerHTML = `
+                        <p>Please enter a valid number of minutes.</p>
+                        <button style="margin-top: 15px; padding: 8px 15px; background-color: #f57c2c; color: white; border: none; border-radius: 5px; cursor: pointer;">OK</button>
+                    `;
+                    document.body.appendChild(messageBox);
+                    messageBox.querySelector('button').onclick = () => messageBox.remove();
+                    return;
+                }
+
+                if (countdown) clearInterval(countdown);
+                remainingSeconds = minutes * 60;
+                updateDisplay(remainingSeconds);
+                isPaused = false;
+                pauseBtn.disabled = false;
+                pauseBtn.textContent = "Pause";
+
+                const selectedAudioName = audioSelect.value;
+                playAudio(selectedAudioName);
+
+                countdown = setInterval(() => {
+                    if (!isPaused && remainingSeconds > 0) {
+                        remainingSeconds--;
+                        updateDisplay(remainingSeconds);
+                    } else if (remainingSeconds === 0) {
+                        clearInterval(countdown);
+                        pauseBtn.disabled = true;
+                        if (currentAudio) {
+                            currentAudio.pause();
+                            currentAudio.currentTime = 0; // Optionally reset audio
+                            currentAudio = null;
+                        }
+                    }
+                }, 1000);
+            });
+        }
+
+        if (pauseBtn) {
+            pauseBtn.addEventListener("click", () => {
+                isPaused = !isPaused;
+                pauseBtn.textContent = isPaused ? "Resume" : "Pause";
+                if (isPaused) {
+                    pauseCurrentAudio();
+                } else {
+                    resumeCurrentAudio();
+                }
+            });
+        }
+
+        // Ensure audio loops
+        for (const key in audioElements) {
+            if (audioElements.hasOwnProperty(key) && audioElements[key]) {
+                audioElements[key].loop = true;
+            }
+        }
+
+        // Theme toggle logic (copied from main app)
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleDarkButton = document.getElementById('toggle-dark');
+            const body = document.body;
+
+            const applyTheme = (isDark) => {
+                if (isDark) {
+                    body.classList.add('dark-mode');
+                    if (toggleDarkButton) {
+                        const icon = toggleDarkButton.querySelector('i');
+                        if (icon) icon.setAttribute('data-lucide', 'sun');
+                    }
+                } else {
+                    body.classList.remove('dark-mode');
+                    if (toggleDarkButton) {
+                        const icon = toggleDarkButton.querySelector('i');
+                        if (icon) icon.setAttribute('data-lucide', 'moon');
+                    }
+                }
+                lucide.createIcons();
+            };
+
+            if (toggleDarkButton) {
+                toggleDarkButton.addEventListener('click', function() {
+                    const isDarkMode = body.classList.contains('dark-mode');
+                    applyTheme(!isDarkMode);
+                    localStorage.setItem('darkMode', !isDarkMode);
+                });
+            }
+
+            const isDarkMode = localStorage.getItem('darkMode') === 'true';
+            applyTheme(isDarkMode);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+streamlit
+plotly
+transformers
+torch
+sentence-transformers
+openai-whisper
+faiss-cpu
+pandas
+flask
+accelerate

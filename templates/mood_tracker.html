@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manasvi - Mood Tracker</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Alata&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Link to your external CSS file -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mood_tracker.css') }}" />
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <h1>MANASVI</h1>
+            <p>Where Ancient Wisdom Meets the Modern Mind.</p>
+        </div>
+
+        <!-- Chat list section -->
+        <div class="chat-list">
+            <h2>Your Chats</h2>
+            <a class="chat-link {% if not current_cid %}active{% endif %}" href="{{ url_for('new_chat') }}">
+                <i data-lucide="plus-circle" style="margin-right: 8px;"></i> New Chat
+            </a>
+            <!-- Placeholder for dynamic conversations. In a real Flask app, 'conversations' would be passed from the backend. -->
+            <!-- Example of dynamic content: -->
+            {% for cid, date in conversations %}
+                <a class="chat-link {% if current_cid == cid %}active{% endif %}" href="{{ url_for('load_chat', cid=cid) }}">
+                    <i data-lucide="message-square" style="margin-right: 8px;"></i> Chat on {{ date }}
+                    <small>{{ cid[:8] }}...</small>
+                </a>
+            {% endfor %}
+        </div>
+
+        <div class="separator"></div> <!-- Separator line -->
+
+        <!-- Sidebar navigation buttons section -->
+        <div class="sidebar-buttons">
+            <button class="active" onclick="window.location.href='{{ url_for('mood_tracker') }}'">
+                <i data-lucide="bar-chart-3"></i> MOOD TRACKER
+            </button>
+            <button onclick="window.location.href='{{ url_for('ekanta_nilaya') }}'">
+                <i data-lucide="lotus"></i> EKANTA NILAYA
+            </button>
+        </div>
+    </div>
+
+
+    <div class="main-content">
+        <div class="top-bar">
+            <div class="top-bar-controls">
+                
+                <div class="circle-btn dark" id="toggle-dark"><i data-lucide="moon"></i></div> <!-- Dark mode toggle -->
+                <a href="{{ url_for('logout') }}" class="circle-btn logout-circle-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </a>
+            </div>
+        </div>
+
+        <h1>What's Your Mood?</h1>
+
+        <div id="mood-selector" style="margin-bottom: 15px;">
+            <!-- Mood buttons will be rendered here by JavaScript -->
+        </div>
+
+        <button id="save-mood">Save</button>
+
+        <h2 style="margin-top: 40px;">Mood Over Past Days</h2>
+        <canvas id="moodChart" width="600" height="300"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        lucide.createIcons(); // Ensure lucide icons are created on load
+
+        // Possible moods - this list can grow/change dynamically based on saved moods
+        let moods = [
+            { emoji: "😢", label: "Sad" },
+            { emoji: "😰", label: "Anxious" },
+            { emoji: "😐", label: "Ok" },
+            { emoji: "😊", label: "Good" },
+            { emoji: "😄", label: "Happy" },
+            { emoji: "🤩", label: "Excited" },
+        ];
+
+        // State: user's selected mood index
+        let selectedMoodIndex = null;
+
+        const moodSelector = document.getElementById('mood-selector');
+        const saveBtn = document.getElementById('save-mood');
+        // const commentInput = document.getElementById('additional-comment'); // Commented out as 'additional-comment' is not in the HTML
+        const ctx = document.getElementById('moodChart').getContext('2d');
+
+        // Load mood history from localStorage or start empty
+        let moodHistory = JSON.parse(localStorage.getItem('moodHistory') || '[]');
+
+        // Render mood buttons dynamically
+        function renderMoodButtons() {
+            moodSelector.innerHTML = '';
+            moods.forEach((mood, index) => {
+                const btn = document.createElement('button');
+                btn.classList.add('mood-button'); // Apply new class
+                if (selectedMoodIndex === index) {
+                    btn.classList.add('selected'); // Apply selected class
+                }
+                btn.title = mood.label;
+                btn.textContent = mood.emoji;
+                btn.onclick = () => {
+                    selectedMoodIndex = index;
+                    renderMoodButtons();
+                };
+                moodSelector.appendChild(btn);
+            });
+        }
+
+        // Save mood data with current date
+        saveBtn.addEventListener('click', () => {
+            if (selectedMoodIndex === null) {
+                // Using a custom message box instead of alert()
+                const messageBox = document.createElement('div');
+                messageBox.style.cssText = `
+                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                    background-color: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                    z-index: 1000; text-align: center; color: #4a2c2c; /* Adjusted for light mode text */
+                `;
+                messageBox.innerHTML = `
+                    <p>Please select a mood before saving.</p>
+                    <button style="margin-top: 15px; padding: 8px 15px; background-color: #f57c2c; color: white; border: none; border-radius: 5px; cursor: pointer;">OK</button>
+                `;
+                document.body.appendChild(messageBox);
+                messageBox.querySelector('button').onclick = () => messageBox.remove();
+                return;
+            }
+            const today = new Date().toISOString().slice(0, 10); //YYYY-MM-DD
+            const newEntry = {
+                date: today,
+                moodIndex: selectedMoodIndex,
+                // comment: commentInput ? commentInput.value.trim() : '' // Commented out as 'additional-comment' is not in the HTML
+            };
+
+            // Check if already have mood saved for today, replace it
+            const existingIndex = moodHistory.findIndex(entry => entry.date === today);
+            if (existingIndex >= 0) {
+                moodHistory[existingIndex] = newEntry;
+            } else {
+                moodHistory.push(newEntry);
+            }
+
+            localStorage.setItem('moodHistory', JSON.stringify(moodHistory));
+
+            // Using a custom message box instead of alert()
+            const messageBox = document.createElement('div');
+            messageBox.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background-color: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                z-index: 1000; text-align: center; color: #4a2c2c; /* Adjusted for light mode text */
+            `;
+            messageBox.innerHTML = `
+                <p>Mood saved!</p>
+                <button style="margin-top: 15px; padding: 8px 15px; background-color: #f57c2c; color: white; border: none; border-radius: 5px; cursor: pointer;">OK</button>
+            `;
+            document.body.appendChild(messageBox);
+            messageBox.querySelector('button').onclick = () => messageBox.remove();
+
+
+            // if (commentInput) commentInput.value = ''; // Commented out as 'additional-comment' is not in the HTML
+            selectedMoodIndex = null;
+            renderMoodButtons();
+            updateChart();
+        });
+
+        // Get past 7 days including today
+        function getPastDays(numDays = 7) {
+            const days = [];
+            for (let i = numDays - 1; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                days.push(d.toISOString().slice(0, 10));
+            }
+            return days;
+        }
+
+        // Prepare data for the chart
+        function getChartData() {
+            const days = getPastDays(7);
+            const dataPoints = [];
+            days.forEach(day => {
+                const entry = moodHistory.find(e => e.date === day);
+                if (entry) {
+                    dataPoints.push(entry.moodIndex + 1); // +1 because moodIndex is 0-based
+                } else {
+                    dataPoints.push(null); // no data for that day
+                }
+            });
+            return { days, dataPoints };
+        }
+
+        // Initialize Chart.js line chart
+        let chart;
+
+        function updateChart() {
+            const { days, dataPoints } = getChartData();
+
+            // Collect unique mood emojis from moodHistory dynamically
+            // If moodHistory empty, fallback to moods list
+            let uniqueMoodIndices = [...new Set(moodHistory.map(e => e.moodIndex))];
+            if (uniqueMoodIndices.length === 0) {
+                uniqueMoodIndices = moods.map((_, i) => i);
+            }
+            uniqueMoodIndices.sort((a, b) => a - b);
+
+            // y-axis labels map mood indices to emojis
+            const yLabels = [];
+            for (let i = 0; i <= moods.length; i++) { // Changed loop condition to moods.length to ensure all emojis are considered
+                yLabels.push(moods[i]?.emoji || '');
+            }
+
+            // Determine chart text color based on theme
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            const textColor = isDarkMode ? '#e0e0e0' : '#4a2c2c'; // Light gray for dark, dark brown for light
+            const gridColor = isDarkMode ? '#444' : '#ddd'; // Darker for dark, lighter for light
+            const borderColor = isDarkMode ? '#f57c2c' : '#f57c2c'; // Orange accent for both
+            const backgroundColor = isDarkMode ? '#f8caa0' : '#f8caa0'; // Lighter orange for both
+
+            // Destroy old chart if exists
+            if(chart) chart.destroy();
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: days.map(d => new Date(d).toLocaleDateString(undefined, { weekday: 'short' })),
+                    datasets: [{
+                        label: 'Mood Over Time',
+                        data: dataPoints,
+                        borderColor: borderColor,
+                        backgroundColor: backgroundColor,
+                        borderWidth: 3,
+                        tension: 0.3,
+                        fill: true,
+                        spanGaps: true,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: moods.length, // Max value should be moods.length for 0-indexed moods
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    // Show emoji for mood index (value-1) or empty
+                                    return moods[value - 1]?.emoji || '';
+                                },
+                                color: textColor // Apply dynamic color
+                            },
+                            grid: {
+                                color: gridColor // Apply dynamic color
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: textColor // Apply dynamic color
+                            },
+                            grid: {
+                                color: gridColor // Apply dynamic color
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: textColor, // Apply dynamic color
+                                font: { size: 14 }
+                            }
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // Initial render
+        renderMoodButtons();
+        updateChart(); // Initial chart update
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleDarkButton = document.getElementById('toggle-dark');
+            const body = document.body;
+
+            // Function to set theme and update moon/sun icon
+            const applyTheme = (isDark) => {
+                if (isDark) {
+                    body.classList.add('dark-mode');
+                    if (toggleDarkButton) {
+                        const icon = toggleDarkButton.querySelector('i');
+                        if (icon) icon.setAttribute('data-lucide', 'sun');
+                    }
+                } else {
+                    body.classList.remove('dark-mode');
+                    if (toggleDarkButton) {
+                        const icon = toggleDarkButton.querySelector('i');
+                        if (icon) icon.setAttribute('data-lucide', 'moon');
+                    }
+                }
+                lucide.createIcons(); // Re-render icons after changing
+                updateChart(); // Update chart colors based on new theme
+            };
+
+            if (toggleDarkButton) {
+                toggleDarkButton.addEventListener('click', function() {
+                    const isDarkMode = body.classList.contains('dark-mode');
+                    applyTheme(!isDarkMode); // Toggle theme
+                    localStorage.setItem('darkMode', !isDarkMode); // Save preference
+                });
+            }
+
+            // Check for saved preference on page load
+            const isDarkMode = localStorage.getItem('darkMode') === 'true';
+            applyTheme(isDarkMode); // Apply saved theme
+        });
+    </script>
+
+</body>
+</html>

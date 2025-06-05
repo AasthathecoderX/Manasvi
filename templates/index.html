@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Manasvi - Mental Wellness Chatbot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}" />
+</head>
+
+<body>
+    
+
+    <div class="sidebar">
+        <div class="logo">
+            <h1>MANASVI</h1>
+            <p>Where Ancient Wisdom Meets the Modern Mind.</p>
+        </div>
+
+        <div class="chat-list">
+            <h2>Your Chats</h2>
+            <a class="chat-link {% if not current_cid %}active{% endif %}" href="{{ url_for('new_chat') }}">
+                <i data-lucide="plus-circle" style="margin-right: 8px;"></i> New Chat
+            </a>
+            {% for cid, date in conversations %}
+                <a class="chat-link {% if current_cid == cid %}active{% endif %}" href="{{ url_for('load_chat', cid=cid) }}">
+                    <i data-lucide="message-square" style="margin-right: 8px;"></i> Chat on {{ date }}
+                    <small>{{ cid[:8] }}...</small>
+                </a>
+            {% endfor %}
+        </div>
+        <div class="separator"></div>
+        <div class="sidebar-buttons">
+            <button class="active" onclick="window.location.href='{{ url_for('mood_tracker') }}'">
+                <i data-lucide="bar-chart-3"></i> MOOD TRACKER
+            </button>
+            <button onclick="window.location.href='{{ url_for('ekanta_nilaya') }}'">
+                <i data-lucide="lotus"></i> EKANTA NILAYA
+            </button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <div class="top-bar-controls">
+                <div class="circle-btn dark" id="toggle-dark"><i data-lucide="moon"></i></div>
+                <a href="{{ url_for('logout') }}" class="circle-btn logout-circle-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div id="mood-tracker-content" style="display: none;"></div>
+            <div id="ekanta-nilaya-content" style="display: none;"></div>
+
+            <div id="chat-section" style="display: flex; flex-direction: column; height: 100%;">
+                <div class="chat-area" id="chat-history">
+                    {% if chat_history %}
+                        {% for msg in chat_history %}
+                            <div class="message {{ 'user' if msg.role == 'user' else 'bot' }}">
+                                <strong>{{ 'You' if msg.role == 'user' else 'Manasvi' }}:</strong> {{ msg.content }}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="text-align: center; color: #777; margin-top: 50px;">
+                            <i data-lucide="message-circle" style="width: 40px; height: 40px; stroke: #f57c2c; margin-bottom: 15px;"></i><br>
+                            Start a conversation with Manasvi! How can I help you today?
+                        </p>
+                    {% endif %}
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" class="chat-input">
+                    <div class="mode-selector">
+                        <label><input type="radio" name="mode" value="Text" checked onchange="toggleInput(this.value)"> Text Input</label>
+                        <label><input type="radio" name="mode" value="Voice" onchange="toggleInput(this.value)"> Voice Input</label>
+                    </div>
+
+                    <div id="textInput">
+                        <textarea name="user_input_text" placeholder="Type your message here...">{{ user_input }}</textarea>
+                    </div>
+
+                    <div id="voiceInput">
+                        <button type="button" onclick="startRecording()">
+                            <i data-lucide="mic" style="stroke: white;"></i> Speak Now
+                        </button>
+                        <p id="transcript" style="margin-top:10px; color:#f57c2c;"></p>
+                        <input type="hidden" name="user_input" id="user_input" />
+                    </div>
+
+                    <button type="submit">
+                        <i data-lucide="send" style="stroke: white;"></i> Send
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        lucide.createIcons();
+
+        document.getElementById('toggle-dark').addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            const icon = document.querySelector('#toggle-dark i');
+            if (document.body.classList.contains('dark-mode')) {
+                icon.setAttribute('data-lucide', 'sun');
+            } else {
+                icon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons(); // Re-render icons after changing
+        });
+
+        function toggleInput(value) {
+            document.getElementById('textInput').style.display = value === 'Text' ? 'block' : 'none';
+            document.getElementById('voiceInput').style.display = value === 'Voice' ? 'flex' : 'none'; // Use flex for voice input
+        }
+
+        // Initialize input mode on load
+        document.addEventListener('DOMContentLoaded', () => {
+            toggleInput(document.querySelector('input[name="mode"]:checked').value);
+            const chatHistory = document.getElementById('chat-history');
+            chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to bottom on load
+        });
+
+        function startRecording() {
+            if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+                alert('Your browser does not support Speech Recognition. Please use a modern browser like Chrome or Edge.');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-IN'; // Indian English
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            const speakButton = document.querySelector('#voiceInput button');
+            const transcriptElement = document.getElementById('transcript');
+
+            speakButton.innerHTML = '<i data-lucide="mic" style="stroke: white;"></i> Listening...';
+            speakButton.disabled = true;
+            transcriptElement.innerText = "Listening...";
+
+            recognition.start();
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                transcriptElement.innerText = "You said: " + transcript;
+                document.getElementById('user_input').value = transcript;
+                speakButton.innerHTML = '<i data-lucide="mic" style="stroke: white;"></i> Processing...';
+                setTimeout(() => {
+                    document.querySelector('form').submit();
+                }, 1000); // Give a moment for user to see transcript
+            };
+
+            recognition.onspeechend = function() {
+                recognition.stop();
+                speakButton.innerHTML = '<i data-lucide="mic" style="stroke: white;"></i> Speak Now';
+                speakButton.disabled = false;
+            };
+
+            recognition.onerror = function(event) {
+                transcriptElement.innerText = 'Speech recognition error: ' + event.error + '. Please try again.';
+                speakButton.innerHTML = '<i data-lucide="mic" style="stroke: white;"></i> Speak Now';
+                speakButton.disabled = false;
+                console.error('Speech recognition error:', event.error);
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const moodTrackerBtn = document.querySelector('button[onclick*="mood_tracker"]');
+            const ekantaNilayaBtn = document.querySelector('button[onclick*="ekanta_nilaya"]');
+            const newChatLink = document.querySelector('.chat-link[href*="new_chat"]'); // Select the new chat link
+            const moodTrackerContent = document.getElementById('mood-tracker-content');
+            const ekantaNilayaContent = document.getElementById('ekanta-nilaya-content');
+            const chatSection = document.getElementById('chat-section');
+            const sidebarButtons = document.querySelectorAll('.sidebar-buttons button');
+            const chatLinks = document.querySelectorAll('.chat-list .chat-link'); // Select all chat links
+
+            function showContent(contentToShow) {
+                // Remove active class from all sidebar buttons and chat links
+                sidebarButtons.forEach(btn => btn.classList.remove('active'));
+                chatLinks.forEach(link => link.classList.remove('active'));
+
+                // Hide all content sections
+                moodTrackerContent.style.display = 'none';
+                ekantaNilayaContent.style.display = 'none';
+                chatSection.style.display = 'none';
+
+                if (contentToShow === 'mood-tracker') {
+                    fetch('/mood-tracker')
+                        .then(response => response.text())
+                        .then(html => {
+                            moodTrackerContent.innerHTML = html;
+                            moodTrackerContent.style.display = 'block';
+                            moodTrackerBtn.classList.add('active'); // Set mood tracker button active
+                            lucide.createIcons();
+                            const moodTrackerScriptTag = moodTrackerContent.querySelector('script#mood-tracker-script');
+                            if (moodTrackerScriptTag) {
+                                eval(moodTrackerScriptTag.textContent);
+                            } else if (typeof initializeMoodTrackerScripts === 'function') {
+                                initializeMoodTrackerScripts();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading mood tracker:', error);
+                            moodTrackerContent.innerHTML = '<p style="text-align: center; color: #f57c2c;">Failed to load mood tracker.</p>';
+                            moodTrackerContent.style.display = 'block';
+                        });
+                } else if (contentToShow === 'ekanta-nilaya') {
+                    fetch('/ekanta-nilaya')
+                        .then(response => response.text())
+                        .then(html => {
+                            ekantaNilayaContent.innerHTML = html;
+                            ekantaNilayaContent.style.display = 'block';
+                            ekantaNilayaBtn.classList.add('active'); // Set ekanta nilaya button active
+                            lucide.createIcons();
+                            const ekantaNilayaScriptTag = ekantaNilayaContent.querySelector('script#ekanta-nilaya-script');
+                            if (ekantaNilayaScriptTag) {
+                                eval(ekantaNilayaScriptTag.textContent);
+                            } else if (typeof initializeEkantaNilayaScripts === 'function') {
+                                initializeEkantaNilayaScripts();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading Ekanta Nilaya:', error);
+                            ekantaNilayaContent.innerHTML = '<p style="text-align: center; color: #f57c2c;">Failed to load Ekanta Nilaya.</p>';
+                            ekantaNilayaContent.style.display = 'block';
+                        });
+                } else {
+                    // Default to chat section
+                    chatSection.style.display = 'flex';
+                    // Check if current_cid is defined to activate the correct chat link or "New Chat"
+                    const currentCid = "{{ current_cid | default('') }}";
+                    if (currentCid) {
+                        document.querySelector(`.chat-link[href*="cid=${currentCid}"]`).classList.add('active');
+                    } else {
+                        newChatLink.classList.add('active');
+                    }
+                    // Deactivate all sidebar buttons when a chat is active
+                    sidebarButtons.forEach(btn => btn.classList.remove('active'));
+                }
+            }
+
+            // Event listeners for sidebar buttons
+            moodTrackerBtn.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent default link behavior
+                showContent('mood-tracker');
+            });
+
+            ekantaNilayaBtn.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent default link behavior
+                showContent('ekanta-nilaya');
+            });
+
+            // Event listeners for chat links
+            chatLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // If it's the new chat link, it will refresh the page which is fine.
+                    // For existing chat links, we'd ideally load the chat history via AJAX.
+                    // For this example, we'll let the Flask routing handle it.
+                    // Just make sure the active class is set for the visual.
+                    showContent('chat'); // Display chat section and activate the clicked link
+                });
+            });
+
+            // Initial content display based on current page
+            // This part assumes Flask is rendering the correct initial state.
+            // If the URL contains /mood-tracker or /ekanta-nilaya, trigger the load.
+            if (window.location.pathname.includes('/mood-tracker')) {
+                showContent('mood-tracker');
+            } else if (window.location.pathname.includes('/ekanta-nilaya')) {
+                showContent('ekanta-nilaya');
+            } else {
+                showContent('chat'); // Default to chat section
+            }
+        });
+    </script>
+</body>
+</html>
