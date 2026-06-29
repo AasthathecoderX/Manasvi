@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Ekanta Nilaya | Manasvi{% endblock %}
+{% block page_title %}Ekanta Nilaya{% endblock %}
+{% block eyebrow %}Meditation space{% endblock %}
+
+{% block content %}
+<section class="meditation-layout">
+    <div class="meditation-focus">
+        <p class="quote">The quieter you become, the more you can hear.</p>
+        <div class="timer-display" id="countdownDisplay">05:00</div>
+    </div>
+
+    <form class="tool-panel meditation-controls">
+        <label>
+            Duration
+            <input type="number" id="timeInput" min="1" max="120" value="5">
+        </label>
+        <label>
+            Ambient sound
+            <select id="audioSelect">
+                <option value="flute">Flute Melody</option>
+                <option value="sitar">Sitar Music</option>
+                <option value="violin">Violin Serenity</option>
+            </select>
+        </label>
+        <div class="button-row">
+            <button class="primary-button" id="startTimer" type="button">
+                <i data-lucide="play"></i>
+                Start
+            </button>
+            <button class="secondary-button" id="pauseTimer" type="button" disabled>
+                <i data-lucide="pause"></i>
+                Pause
+            </button>
+            <button class="secondary-button" id="resetTimer" type="button">
+                <i data-lucide="rotate-ccw"></i>
+                Reset
+            </button>
+        </div>
+    </form>
+
+    <audio id="fluteAudio" src="{{ url_for('static', filename='flute.mp3') }}" loop></audio>
+    <audio id="sitarAudio" src="{{ url_for('static', filename='sitar.mp3') }}" loop></audio>
+    <audio id="violinAudio" src="{{ url_for('static', filename='violin.mp3') }}" loop></audio>
+</section>
+{% endblock %}

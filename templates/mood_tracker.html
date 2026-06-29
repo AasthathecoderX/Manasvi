@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Mood Tracker | Manasvi{% endblock %}
+{% block page_title %}Mood Tracker{% endblock %}
+{% block eyebrow %}Daily reflection{% endblock %}
+
+{% block content %}
+<section class="tool-grid">
+    <form class="tool-panel" id="moodForm">
+        <h2>How are you feeling today?</h2>
+        <div class="mood-options" role="radiogroup" aria-label="Mood">
+            <button type="button" data-mood="Sad">Sad</button>
+            <button type="button" data-mood="Anxious">Anxious</button>
+            <button type="button" data-mood="Okay">Okay</button>
+            <button type="button" data-mood="Good">Good</button>
+            <button type="button" data-mood="Happy">Happy</button>
+        </div>
+        <label>
+            Optional note
+            <textarea name="note" rows="4" placeholder="What influenced your mood?"></textarea>
+        </label>
+        <button class="primary-button" type="submit">Save mood</button>
+        <p class="microcopy" id="moodSaveStatus"></p>
+    </form>
+
+    <section class="tool-panel">
+        <div class="section-heading">
+            <h2>Last 30 entries</h2>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="moodChart" aria-label="Mood trend chart"></canvas>
+        </div>
+    </section>
+</section>
+{% endblock %}
